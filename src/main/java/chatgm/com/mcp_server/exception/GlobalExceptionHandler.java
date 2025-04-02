@@ -42,6 +42,20 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.UNAUTHORIZED);
     }
     
+    @ExceptionHandler(UsuarioNaoAutorizadoException.class)
+    public ResponseEntity<Object> handleUsuarioNaoAutorizado(
+            UsuarioNaoAutorizadoException ex, WebRequest request) {
+        
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.UNAUTHORIZED.value());
+        body.put("error", "Usuário não autorizado");
+        body.put("message", ex.getMessage());
+        body.put("path", request.getDescription(false));
+        
+        return new ResponseEntity<>(body, HttpStatus.UNAUTHORIZED);
+    }
+    
     // Manipulador específico para exceções de timeout SSE
     @ExceptionHandler(AsyncRequestTimeoutException.class)
     public ResponseEntity<Object> handleAsyncRequestTimeoutException(

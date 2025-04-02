@@ -55,9 +55,14 @@ public class McpServerApplication {
                 : externalUrl;
                 
             logger.info("URL externa configurada: {}", baseUrl);
-            logger.info("Endpoint SSE disponível em {}/sse", baseUrl);
-            logger.info("Endpoint REST disponível em {}/calendarios", baseUrl);
-            logger.info("Página de teste disponível em {}/static/sse-test.html", baseUrl);
+            logger.info("Endpoint SSE disponível em: {}/sse", baseUrl);
+            logger.info("Opções de autenticação SSE:");
+            logger.info("  - Via header: Authorization: seu-email@exemplo.com");
+            logger.info("  - Via URL: {}/sse?email=seu-email@exemplo.com", baseUrl);
+            logger.info("Endpoint REST disponível em: {}/calendarios", baseUrl);
+            
+            // Remova a referência à página de teste que foi excluída
+            // logger.info("Página de teste disponível em {}/static/sse-test.html", baseUrl);
         };
     }
 
@@ -89,13 +94,13 @@ public class McpServerApplication {
                         
                     Map<String, Object> serverInfo = new HashMap<>();
                     serverInfo.put("name", "MCP Calendar Server");
-                    serverInfo.put("version", "0.1.0");
+                    serverInfo.put("version", "0.2.0");
                     serverInfo.put("javaVersion", System.getProperty("java.version"));
                     serverInfo.put("baseUrl", baseUrl);
                     serverInfo.put("endpoints", Map.of(
                         "sse", baseUrl + "/sse",
-                        "calendarios", baseUrl + "/calendarios",
-                        "test", baseUrl + "/static/sse-test.html"
+                        "sseWithEmail", baseUrl + "/sse?email=seu-email@exemplo.com",
+                        "calendarios", baseUrl + "/calendarios"
                     ));
                     
                     try {
@@ -114,29 +119,35 @@ public class McpServerApplication {
     @Service
     static class CalendarTool {
         @Autowired
-        private SseController sseController;
-        
-        @Autowired
         private CalendarioService calendarioService;
         
-        @Tool(description = "Busca os calendários disponíveis para um usuário pelo email.")
-        public Map<String, Object> getCalendarios(String email) {
+        @Autowired
+        private SseController sseController;
+        
+        @Tool(description = "Busca os calendários disponíveis para o usuário autenticado. Retorna a lista de calendários do Google associados à conta do usuário que está atualmente conectado via SSE.")
+        public Map<String, Object> BuscarCalendarios() {
             try {
+                // Uma alternativa é obter o usuário atualmente autenticado diretamente via SseController
+                // Em vez de depender da classe McpServerRequestContext que não está disponível
+                String email = sseController.getCurrentUserEmail();
+                
+                if (email == null || email.isEmpty()) {
+                    return Map.of("success", false, "error", "Não foi possível identificar o usuário. Verifique a autenticação.");
+                }
+                
                 List<String> calendarios = calendarioService.getCalendariosByUserEmail(email);
-                return Map.of("success", true, "calendarios", calendarios);
+                return Map.of(
+                    "success", true, 
+                    "email", email,
+                    "calendarios", calendarios
+                );
             } catch (UsuarioNaoEncontradoException e) {
-                return Map.of("success", false, "error", "Usuário não encontrado com o email: " + email);
+                return Map.of("success", false, "error", "Usuário não encontrado: " + e.getMessage());
             } catch (TokenInvalidoException e) {
                 return Map.of("success", false, "error", "Token inválido ou expirado: " + e.getMessage());
             } catch (Exception e) {
                 return Map.of("success", false, "error", "Erro ao buscar calendários: " + e.getMessage());
             }
-        }
-        
-        @Tool(description = "Retorna o número de clientes SSE atualmente conectados")
-        public Map<String, Object> getConnectedClientsCount() {
-            int count = sseController.getConnectedClientsCount();
-            return Map.of("connectedClients", count);
         }
     }
 }

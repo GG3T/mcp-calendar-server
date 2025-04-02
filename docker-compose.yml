@@ -1,33 +1,41 @@
 version: "3.7"
 services:
   mcp-calendar-service:
-    image: gg3t/mcp-calendar-service:0.1.0  # Utilize a imagem construída a partir do seu Dockerfile
+    image: gg3t/mcp-calendar-service:0.3.0
     networks:
       - ChatgmNET
+    ports:
+      # Porta exposta apenas para depuração
+      - "127.0.0.1:3501:3500"
     environment:
-      # Ambiente de produção
       - SERVER_PORT=3500
       - SPRING_PROFILES_ACTIVE=prod
-      # Configurações do banco de dados (mantenha as mesmas do seu application.properties)
+      - SERVER_EXTERNAL_URL=https://calendar.mcpgod.com.br
       - SPRING_DATASOURCE_URL=jdbc:postgresql://178.156.146.193:5432/callback_db
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=71d14724653158e0e40fd03f522ac11c
     deploy:
       labels:
+        # Configuração simplificada
         - "traefik.enable=true"
-        - "traefik.http.routers.mcp-calendar.rule=Host(`mcp-calendar.chatgmia.org`)"
-        - "traefik.http.routers.mcp-calendar.entrypoints=websecure"
-        - "traefik.http.routers.mcp-calendar.tls.certresolver=letsencryptresolver"
-        - "traefik.http.services.mcp-calendar.loadbalancer.server.port=3500"
-        # Configurações para WebSockets e SSE
-        - "traefik.http.middlewares.sseheader.headers.customrequestheaders.Cache-Control=no-cache"
-        - "traefik.http.middlewares.sseheader.headers.customresponseheaders.Cache-Control=no-cache"
-        - "traefik.http.middlewares.sseheader.headers.customresponseheaders.Content-Type=text/event-stream"
-        - "traefik.http.middlewares.sseheader.headers.customresponseheaders.Connection=keep-alive"
-        - "traefik.http.middlewares.sseheader.headers.customresponseheaders.X-Accel-Buffering=no"
-        - "traefik.http.routers.mcp-calendar.middlewares=sseheader@docker"
+        
+        # Configuração do router HTTP
+        - "traefik.http.routers.mcpgod.rule=Host(`calendar.mcpgod.com.br`)"
+        - "traefik.http.routers.mcpgod.entrypoints=websecure"
+        - "traefik.http.routers.mcpgod.tls=true"
+        - "traefik.http.routers.mcpgod.tls.certresolver=letsencryptresolver"
+        
+        # Configuração do serviço
+        - "traefik.http.services.mcpgod.loadbalancer.server.port=3500"
+        
+        # Middleware para SSE
+        - "traefik.http.middlewares.sse-headers.headers.customResponseHeaders.Cache-Control=no-cache"
+        - "traefik.http.middlewares.sse-headers.headers.customResponseHeaders.Connection=keep-alive"
+        - "traefik.http.middlewares.sse-headers.headers.customResponseHeaders.X-Accel-Buffering=no"
+        
+        # Aplicar o middleware
+        - "traefik.http.routers.mcpgod.middlewares=sse-headers@docker"
     restart: always
-    # Não exponha a porta externamente, pois o Traefik fará o roteamento.
 networks:
   ChatgmNET:
     external: true

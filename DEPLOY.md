@@ -18,20 +18,20 @@ Este documento contém as instruções para implantar o MCP Calendar Server no P
 mvn clean package -DskipTests
 ```
 
-Este comando criará um arquivo JAR em `target/mcp-server-0.1.0.jar`
+Este comando criará um arquivo JAR em `target/mcp-server-0.3.0.jar`
 
 ### 2. Construir a imagem Docker
 
 ```bash
 # Na máquina de desenvolvimento
-docker build -t gg3t/mcp-calendar-service:0.1.0 .
+docker build -t gg3t/mcp-calendar-service:0.3.0 .
 ```
 
 ### 3. Enviar a imagem para o Docker Hub
 
 ```bash
 # Na máquina de desenvolvimento
-docker push gg3t/mcp-calendar-service:0.1.0
+docker push gg3t/mcp-calendar-service:0.3.0
 ```
 
 ### 4. Implantar no Portainer
@@ -47,29 +47,76 @@ docker push gg3t/mcp-calendar-service:0.1.0
 
 Após a implantação, você pode verificar se o serviço está funcionando corretamente:
 
-1. Abra um navegador e acesse: `https://mcp-calendar.chatgmia.org/static/sse-test.html`
-2. Insira um email válido do seu banco de dados
-3. Clique em "Conectar"
-4. Verifique se a conexão SSE é estabelecida e os dados de calendário são exibidos
+1. Verifique o endpoint simples: `https://calendar.mcpgod.com.br/ping`
+2. Verifique o endpoint de saúde: `https://calendar.mcpgod.com.br/api/health`
+3. Verifique o endpoint de debug de headers: `https://calendar.mcpgod.com.br/api/headers`
+4. Teste a página de teste SSE: `https://calendar.mcpgod.com.br/static/sse-test.html`
 
 ## Solução de Problemas
 
-Se você encontrar problemas durante a implantação:
+### 1. Verificar os logs do contêiner
 
-1. **Verifique os logs do contêiner**:
-   No Portainer, navegue até a pilha "mcp-calendar", clique no contêiner e veja os logs.
+No Portainer, navegue até a pilha "mcp-calendar", clique no contêiner e veja os logs para identificar possíveis erros.
 
-2. **Verifique as configurações de rede**:
-   Certifique-se de que a rede "ChatgmNET" existe e que o Traefik está corretamente configurado.
+### 2. Verificar resolução DNS
 
-3. **Verifique o registro DNS**:
-   Confirme que o registro DNS para `mcp-calendar.chatgmia.org` está apontando para o endereço IP correto.
+```bash
+nslookup calendar.mcpgod.com.br
+```
 
-4. **Verifique as configurações do SSL**:
-   Certifique-se de que o Traefik está configurado corretamente para obter certificados SSL do Let's Encrypt.
+Certifique-se de que está resolvendo para o IP correto do seu servidor.
 
-5. **Consulte os logs do Traefik**:
-   Os logs do Traefik podem conter informações úteis sobre problemas de roteamento ou SSL.
+### 3. Verificar a configuração do Traefik
+
+Para verificar se o Traefik está rotando corretamente para seu contêiner:
+
+```bash
+# No servidor, verifique os logs do Traefik
+docker logs traefik | grep mcpgod
+```
+
+Certifique-se de que há rotas configuradas para o seu domínio.
+
+### 4. Verificar comunicação de rede interna
+
+```bash
+# Executar dentro do contêiner Traefik para verificar a comunicação interna
+docker exec -it traefik sh -c "wget -O- http://mcp-calendar-service:3500/ping"
+```
+
+### 5. Verificar diretamente o contêiner
+
+Com a configuração de debug que adicionamos, você pode acessar o contêiner diretamente no localhost:3501:
+
+```bash
+# Executar no servidor
+curl http://127.0.0.1:3501/ping
+```
+
+### 6. Verificar certificado SSL
+
+```bash
+# Verificar se o certificado SSL está sendo emitido corretamente
+openssl s_client -showcerts -connect calendar.mcpgod.com.br:443
+```
+
+### 7. Problemas comuns e soluções
+
+#### Problema: Erro 404 (Not Found)
+- **Possível causa**: O Traefik não está roteando corretamente para o serviço
+- **Solução**: Verifique as regras de roteamento no arquivo docker-compose.yml e os logs do Traefik
+
+#### Problema: Erro 502 (Bad Gateway)
+- **Possível causa**: O Traefik pode acessar o contêiner, mas o contêiner não está respondendo
+- **Solução**: Verifique se o serviço dentro do contêiner está funcionando corretamente
+
+#### Problema: Timeout de conexão
+- **Possível causa**: Problemas de rede ou firewall
+- **Solução**: Verifique as regras de firewall e a conectividade de rede
+
+#### Problema: Certificado SSL inválido
+- **Possível causa**: Let's Encrypt não conseguiu validar o domínio
+- **Solução**: Verifique os logs do Traefik e certifique-se de que a resolução DNS está funcionando
 
 ## Atualização
 
