@@ -1,0 +1,107 @@
+2025-04-04 11:13:49.746 [background-preinit] INFO  o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.2.Final
+2025-04-04 11:13:49.957 [main] INFO  c.c.mcp_server.McpServerApplication - Starting McpServerApplication using Java 17.0.12 with PID 14676 (C:\Users\junin\Documents\mcp-server\target\classes started by junin in C:\Users\junin\Documents\mcp-server)
+2025-04-04 11:13:49.962 [main] INFO  c.c.mcp_server.McpServerApplication - No active profile set, falling back to 1 default profile: "default"
+2025-04-04 11:13:55.078 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 3500 (http)
+2025-04-04 11:13:55.099 [main] INFO  o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-0.0.0.0-3500"]
+2025-04-04 11:13:55.103 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2025-04-04 11:13:55.104 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.39]
+2025-04-04 11:13:55.244 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2025-04-04 11:13:55.245 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 5073 ms
+2025-04-04 11:13:56.658 [main] WARN  o.s.b.w.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'requestMappingHandlerMapping' defined in class path resource [org/springframework/boot/autoconfigure/web/servlet/WebMvcAutoConfiguration$EnableWebMvcConfiguration.class]: Ambiguous mapping. Cannot map 'testController' method 
+chatgm.com.mcp_server.controller.TestController#ping()
+to {GET [/ping]}: There is already 'pingController' bean method
+chatgm.com.mcp_server.controller.PingController#ping() mapped.
+2025-04-04 11:13:56.665 [main] INFO  o.a.catalina.core.StandardService - Stopping service [Tomcat]
+2025-04-04 11:13:56.698 [main] INFO  o.s.b.a.l.ConditionEvaluationReportLogger - 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2025-04-04 11:13:56.736 [main] ERROR o.s.boot.SpringApplication - Application run failed
+org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'requestMappingHandlerMapping' defined in class path resource [org/springframework/boot/autoconfigure/web/servlet/WebMvcAutoConfiguration$EnableWebMvcConfiguration.class]: Ambiguous mapping. Cannot map 'testController' method 
+chatgm.com.mcp_server.controller.TestController#ping()
+to {GET [/ping]}: There is already 'pingController' bean method
+chatgm.com.mcp_server.controller.PingController#ping() mapped.
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1812)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:601)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:523)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:339)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:347)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:337)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:202)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.instantiateSingleton(DefaultListableBeanFactory.java:1155)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingleton(DefaultListableBeanFactory.java:1121)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1056)
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:987)
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:627)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146)
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:752)
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:439)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:318)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1361)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1350)
+	at chatgm.com.mcp_server.McpServerApplication.main(McpServerApplication.java:44)
+Caused by: java.lang.IllegalStateException: Ambiguous mapping. Cannot map 'testController' method 
+chatgm.com.mcp_server.controller.TestController#ping()
+to {GET [/ping]}: There is already 'pingController' bean method
+chatgm.com.mcp_server.controller.PingController#ping() mapped.
+	at org.springframework.web.servlet.handler.AbstractHandlerMethodMapping$MappingRegistry.validateMethodMapping(AbstractHandlerMethodMapping.java:676)
+	at org.springframework.web.servlet.handler.AbstractHandlerMethodMapping$MappingRegistry.register(AbstractHandlerMethodMapping.java:637)
+	at org.springframework.web.servlet.handler.AbstractHandlerMethodMapping.registerHandlerMethod(AbstractHandlerMethodMapping.java:331)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping.registerHandlerMethod(RequestMappingHandlerMapping.java:509)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping.registerHandlerMethod(RequestMappingHandlerMapping.java:84)
+	at org.springframework.web.servlet.handler.AbstractHandlerMethodMapping.lambda$detectHandlerMethods$2(AbstractHandlerMethodMapping.java:298)
+	at java.base/java.util.LinkedHashMap.forEach(LinkedHashMap.java:721)
+	at org.springframework.web.servlet.handler.AbstractHandlerMethodMapping.detectHandlerMethods(AbstractHandlerMethodMapping.java:296)
+	at org.springframework.web.servlet.handler.AbstractHandlerMethodMapping.processCandidateBean(AbstractHandlerMethodMapping.java:265)
+	at org.springframework.web.servlet.handler.AbstractHandlerMethodMapping.initHandlerMethods(AbstractHandlerMethodMapping.java:224)
+	at org.springframework.web.servlet.handler.AbstractHandlerMethodMapping.afterPropertiesSet(AbstractHandlerMethodMapping.java:212)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping.afterPropertiesSet(RequestMappingHandlerMapping.java:239)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1859)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1808)
+	... 18 common frames omitted
+2025-04-04 11:15:48.041 [background-preinit] INFO  o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.2.Final
+2025-04-04 11:15:48.545 [main] INFO  c.c.mcp_server.McpServerApplication - Starting McpServerApplication using Java 17.0.12 with PID 4316 (C:\Users\junin\Documents\mcp-server\target\classes started by junin in C:\Users\junin\Documents\mcp-server)
+2025-04-04 11:15:48.547 [main] INFO  c.c.mcp_server.McpServerApplication - No active profile set, falling back to 1 default profile: "default"
+2025-04-04 11:15:53.551 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 3500 (http)
+2025-04-04 11:15:53.572 [main] INFO  o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-0.0.0.0-3500"]
+2025-04-04 11:15:53.576 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2025-04-04 11:15:53.577 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.39]
+2025-04-04 11:15:53.718 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2025-04-04 11:15:53.726 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 5040 ms
+2025-04-04 11:15:57.252 [main] INFO  o.s.a.a.m.s.MpcServerAutoConfiguration - Registered tools4 notification: true
+2025-04-04 11:15:57.275 [main] INFO  o.s.a.a.m.s.MpcServerAutoConfiguration - Registered resources1 notification: true
+2025-04-04 11:15:58.772 [main] INFO  o.s.b.a.e.web.EndpointLinksResolver - Exposing 14 endpoints beneath base path '/actuator'
+2025-04-04 11:15:59.066 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 3500 (http) with context path '/'
+2025-04-04 11:15:59.124 [main] INFO  c.c.mcp_server.McpServerApplication - Started McpServerApplication in 13.177 seconds (process running for 14.563)
+2025-04-04 11:15:59.140 [SpringApplicationShutdownHook] INFO  o.s.b.w.e.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
+2025-04-04 11:15:59.232 [main] INFO  c.c.mcp_server.McpServerApplication - MCP Calendar Server iniciado
+2025-04-04 11:15:59.233 [main] INFO  c.c.mcp_server.McpServerApplication - Servidor rodando em http://0.0.0.0:3500
+2025-04-04 11:15:59.233 [main] INFO  c.c.mcp_server.McpServerApplication - URL externa configurada: http://localhost:3500
+2025-04-04 11:15:59.234 [main] INFO  c.c.mcp_server.McpServerApplication - Endpoint SSE disponível em: http://localhost:3500/sse
+2025-04-04 11:15:59.235 [main] INFO  c.c.mcp_server.McpServerApplication - Opções de autenticação SSE:
+2025-04-04 11:15:59.236 [main] INFO  c.c.mcp_server.McpServerApplication -   - Via header: Authorization: seu-token
+2025-04-04 11:15:59.236 [main] INFO  c.c.mcp_server.McpServerApplication -   - Via URL: http://localhost:3500/sse?token=seu-token
+2025-04-04 11:15:59.236 [main] INFO  c.c.mcp_server.McpServerApplication - Ferramentas disponíveis:
+2025-04-04 11:15:59.236 [main] INFO  c.c.mcp_server.McpServerApplication -   - check_availability: Verifica disponibilidade para agendamento
+2025-04-04 11:15:59.236 [main] INFO  c.c.mcp_server.McpServerApplication -   - create_appointment: Cria um novo agendamento
+2025-04-04 11:15:59.236 [main] INFO  c.c.mcp_server.McpServerApplication -   - get_appointment_details: Obtém detalhes de um agendamento
+2025-04-04 11:15:59.237 [main] INFO  c.c.mcp_server.McpServerApplication -   - cancel_appointment: Cancela um agendamento existente
+2025-04-04 11:16:01.184 [tomcat-shutdown] INFO  o.s.b.w.e.tomcat.GracefulShutdown - Graceful shutdown complete
+2025-04-04 11:17:01.836 [background-preinit] INFO  o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.2.Final
+2025-04-04 11:17:01.900 [main] INFO  c.c.m.McpServerApplicationTests - Starting McpServerApplicationTests using Java 17.0.12 with PID 18532 (started by junin in C:\Users\junin\Documents\mcp-server)
+2025-04-04 11:17:01.900 [main] INFO  c.c.m.McpServerApplicationTests - No active profile set, falling back to 1 default profile: "default"
+2025-04-04 11:17:06.996 [main] INFO  o.s.a.a.m.s.MpcServerAutoConfiguration - Registered tools4 notification: true
+2025-04-04 11:17:06.998 [main] INFO  o.s.a.a.m.s.MpcServerAutoConfiguration - Registered resources1 notification: true
+2025-04-04 11:17:07.847 [main] INFO  o.s.b.a.e.web.EndpointLinksResolver - Exposing 14 endpoints beneath base path '/actuator'
+2025-04-04 11:17:07.968 [main] INFO  c.c.m.McpServerApplicationTests - Started McpServerApplicationTests in 7.423 seconds (process running for 9.643)
+2025-04-04 11:17:08.043 [main] INFO  c.c.mcp_server.McpServerApplication - MCP Calendar Server iniciado
+2025-04-04 11:17:08.044 [main] INFO  c.c.mcp_server.McpServerApplication - Servidor rodando em http://0.0.0.0:3500
+2025-04-04 11:17:08.044 [main] INFO  c.c.mcp_server.McpServerApplication - URL externa configurada: http://localhost:3500
+2025-04-04 11:17:08.044 [main] INFO  c.c.mcp_server.McpServerApplication - Endpoint SSE disponível em: http://localhost:3500/sse
+2025-04-04 11:17:08.045 [main] INFO  c.c.mcp_server.McpServerApplication - Opções de autenticação SSE:
+2025-04-04 11:17:08.045 [main] INFO  c.c.mcp_server.McpServerApplication -   - Via header: Authorization: seu-token
+2025-04-04 11:17:08.045 [main] INFO  c.c.mcp_server.McpServerApplication -   - Via URL: http://localhost:3500/sse?token=seu-token
+2025-04-04 11:17:08.045 [main] INFO  c.c.mcp_server.McpServerApplication - Ferramentas disponíveis:
+2025-04-04 11:17:08.045 [main] INFO  c.c.mcp_server.McpServerApplication -   - check_availability: Verifica disponibilidade para agendamento
+2025-04-04 11:17:08.045 [main] INFO  c.c.mcp_server.McpServerApplication -   - create_appointment: Cria um novo agendamento
+2025-04-04 11:17:08.046 [main] INFO  c.c.mcp_server.McpServerApplication -   - get_appointment_details: Obtém detalhes de um agendamento
+2025-04-04 11:17:08.046 [main] INFO  c.c.mcp_server.McpServerApplication -   - cancel_appointment: Cancela um agendamento existente

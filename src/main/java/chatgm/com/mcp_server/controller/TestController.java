@@ -6,17 +6,21 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
+/**
+ * Controlador para testes e endpoints auxiliares.
+ * Não usado em produção.
+ */
 @RestController
 public class TestController {
 
     /**
-     * Endpoint simples para verificar se o servidor está funcionando
+     * Endpoint de teste
      */
-    @GetMapping("/ping")
-    public ResponseEntity<Map<String, Object>> ping() {
+    @GetMapping("/test")
+    public ResponseEntity<Map<String, Object>> test() {
         return ResponseEntity.ok(Map.of(
             "status", "ok",
-            "message", "Server is running",
+            "message", "Test endpoint is working",
             "timestamp", System.currentTimeMillis()
         ));
     }

@@ -1,20 +1,44 @@
 version: "3.7"
 services:
   mcp-calendar-service:
-    image: gg3t/mcp-calendar-service:0.3.0
+    image: gg3t/mcp-server:0.26.0
+    build:
+      context: .
+      dockerfile: Dockerfile
     networks:
-      - ChatgmNET
+      - mcpgod
     ports:
       # Porta exposta apenas para depuração
       - "127.0.0.1:3501:3500"
+    volumes:
+      # Volume para logs persistentes
+      - mcp_logs:/app/logs
     environment:
       - SERVER_PORT=3500
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_EXTERNAL_URL=https://calendar.mcpgod.com.br
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://178.156.146.193:5432/callback_db
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=71d14724653158e0e40fd03f522ac11c
+      # Diretório de logs
+      - TOMCAT_ACCESSLOG_DIR=/app/logs
+      # Configurações de timeout e rate limiting
+      - APP_SSE_TIMEOUT_MILLIS=300000
+      - APP_SSE_HEARTBEAT_INTERVAL_MILLIS=30000
+      - APP_SSE_HEARTBEAT_ENABLED=true
+      - APP_SSE_HEALTH_CHECK_INTERVAL_MILLIS=60000
+      - APP_RATE_LIMIT_ENABLED=true
+      - APP_RATE_LIMIT_MAX_REQUESTS=60
+      # Configurações de logging
+      - LOG_LEVEL_ROOT=INFO
+      - LOG_LEVEL_APP=INFO
+      - LOG_LEVEL_SPRING_WEB=INFO
+      - LOG_LEVEL_SPRING_AI=INFO
+      # Endpoint da API
+      - APPOINTMENT_API_URL=https://service.mcpgod.com.br/api
     deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
       labels:
         # Configuração simplificada
         - "traefik.enable=true"
@@ -36,7 +60,18 @@ services:
         # Aplicar o middleware
         - "traefik.http.routers.mcpgod.middlewares=sse-headers@docker"
     restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3500/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
 networks:
-  ChatgmNET:
+  mcpgod:
     external: true
     attachable: true
+
+volumes:
+  mcp_logs:
+    driver: local

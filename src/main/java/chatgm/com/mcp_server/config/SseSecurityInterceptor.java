@@ -1,7 +1,5 @@
 package chatgm.com.mcp_server.config;
 
-import chatgm.com.mcp_server.exception.UsuarioNaoAutorizadoException;
-import chatgm.com.mcp_server.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -18,41 +16,29 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class SseSecurityInterceptor implements HandlerInterceptor {
 
-    private final UsuarioRepository usuarioRepository;
-
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws IOException {
         log.debug("Interceptando requisição para: {}", request.getRequestURI());
 
         // Verifica apenas requisições para o endpoint SSE
         if (request.getRequestURI().endsWith("/sse")) {
-            // Tenta obter o email do header ou do parâmetro da URL
-            String email = request.getHeader("Authorization");
-            String emailParam = request.getParameter("email");
+            // Tenta obter o token do header ou do parâmetro da URL
+            String token = request.getHeader("Authorization");
+            String tokenParam = request.getParameter("token");
             
-            if ((email == null || email.isEmpty()) && (emailParam == null || emailParam.isEmpty())) {
-                log.error("Acesso não autorizado ao SSE: Email não fornecido");
+            if ((token == null || token.isEmpty()) && (tokenParam == null || tokenParam.isEmpty())) {
+                log.error("Acesso não autorizado ao SSE: Token não fornecido");
                 response.setStatus(HttpStatus.UNAUTHORIZED.value());
-                response.getWriter().write("Não autorizado: Forneça o email via header Authorization ou parâmetro 'email' na URL");
+                response.getWriter().write("Não autorizado: Forneça o token via header Authorization ou parâmetro 'token' na URL");
                 return false;
             }
             
-            // Se o parâmetro email estiver definido, use-o
-            if (email == null || email.isEmpty()) {
-                email = emailParam;
+            // Se o parâmetro token estiver definido, use-o
+            if (token == null || token.isEmpty()) {
+                token = tokenParam;
             }
-            
-            // Verifica se o email existe no banco de dados
-            boolean emailExiste = usuarioRepository.findByEmail(email).isPresent();
-            
-            if (!emailExiste) {
-                log.error("Acesso não autorizado ao SSE: Email não cadastrado: {}", email);
-                response.setStatus(HttpStatus.UNAUTHORIZED.value());
-                response.getWriter().write("Não autorizado: Email não cadastrado");
-                return false;
-            }
-            
-            log.debug("Requisição SSE autorizada para processamento com email: {}", email);
+
+            log.debug("Requisição SSE autorizada para processamento com token: {}", token);
         }
         
         return true;

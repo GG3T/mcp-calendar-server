@@ -1,5 +1,11 @@
 package chatgm.com.mcp_server;
 
+import chatgm.com.mcp_server.dto.AppointmentDto;
+import chatgm.com.mcp_server.dto.AppointmentRequest;
+import chatgm.com.mcp_server.dto.AvailabilityRequest;
+import chatgm.com.mcp_server.dto.AvailabilityResponse;
+import chatgm.com.mcp_server.service.AppointmentService;
+import chatgm.com.mcp_server.service.TokenService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -16,12 +22,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 
-import chatgm.com.mcp_server.controller.SseController;
-import chatgm.com.mcp_server.dto.CalendariosResponse;
-import chatgm.com.mcp_server.exception.TokenInvalidoException;
-import chatgm.com.mcp_server.exception.UsuarioNaoEncontradoException;
-import chatgm.com.mcp_server.service.CalendarioService;
-
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +39,7 @@ public class McpServerApplication {
 
     @Value("${server.port:8080}")
     private int serverPort;
-    
+
     @Value("${spring.ai.mcp.server.external-url:}")
     private String externalUrl;
 
@@ -49,28 +53,32 @@ public class McpServerApplication {
         return args -> {
             logger.info("MCP Calendar Server iniciado");
             logger.info("Servidor rodando em http://{}:{}", serverAddress, serverPort);
-            
-            String baseUrl = externalUrl.isEmpty() 
-                ? "http://" + serverAddress + ":" + serverPort 
-                : externalUrl;
-                
+
+            String baseUrl = externalUrl.isEmpty()
+                    ? "http://" + serverAddress + ":" + serverPort
+                    : externalUrl;
+
             logger.info("URL externa configurada: {}", baseUrl);
             logger.info("Endpoint SSE disponível em: {}/sse", baseUrl);
             logger.info("Opções de autenticação SSE:");
-            logger.info("  - Via header: Authorization: seu-email@exemplo.com");
-            logger.info("  - Via URL: {}/sse?email=seu-email@exemplo.com", baseUrl);
-            logger.info("Endpoint REST disponível em: {}/calendarios", baseUrl);
-            
-            // Remova a referência à página de teste que foi excluída
-            // logger.info("Página de teste disponível em {}/static/sse-test.html", baseUrl);
+            logger.info("  - Via header: Authorization: seu-token");
+            logger.info("  - Via header: token: seu-token");
+            logger.info("  - Via URL: {}/sse?token=seu-token", baseUrl);
+
+            // Ferramentas disponíveis
+            logger.info("Ferramentas disponíveis:");
+            logger.info("  - check_availability: Verifica disponibilidade para agendamento");
+            logger.info("  - create_appointment: Cria um novo agendamento");
+            logger.info("  - get_appointment_details: Obtém detalhes de um agendamento");
+            logger.info("  - cancel_appointment: Cancela um agendamento existente");
         };
     }
 
     // Registro da ferramenta (tool) - MCP
     @Bean
-    public ToolCallbackProvider toolCallbackProvider(CalendarTool calendarTool) {
+    public ToolCallbackProvider toolCallbackProvider(AppointmentTool appointmentTool) {
         return MethodToolCallbackProvider.builder()
-                .toolObjects(calendarTool)
+                .toolObjects(appointmentTool)
                 .build();
     }
 
@@ -88,21 +96,20 @@ public class McpServerApplication {
         McpServerFeatures.SyncResourceRegistration registration = new McpServerFeatures.SyncResourceRegistration(
                 systemResource,
                 (request) -> {
-                    String baseUrl = externalUrl.isEmpty() 
-                        ? "http://" + serverAddress + ":" + serverPort 
-                        : externalUrl;
-                        
+                    String baseUrl = externalUrl.isEmpty()
+                            ? "http://" + serverAddress + ":" + serverPort
+                            : externalUrl;
+
                     Map<String, Object> serverInfo = new HashMap<>();
                     serverInfo.put("name", "MCP Calendar Server");
-                    serverInfo.put("version", "0.2.0");
+                    serverInfo.put("version", "0.3.0");
                     serverInfo.put("javaVersion", System.getProperty("java.version"));
                     serverInfo.put("baseUrl", baseUrl);
                     serverInfo.put("endpoints", Map.of(
-                        "sse", baseUrl + "/sse",
-                        "sseWithEmail", baseUrl + "/sse?email=seu-email@exemplo.com",
-                        "calendarios", baseUrl + "/calendarios"
+                            "sse", baseUrl + "/sse",
+                            "sseWithToken", baseUrl + "/sse?token=seu-token-aqui"
                     ));
-                    
+
                     try {
                         String json = new ObjectMapper().writeValueAsString(serverInfo);
                         return new McpSchema.ReadResourceResult(
@@ -117,36 +124,281 @@ public class McpServerApplication {
     }
 
     @Service
-    static class CalendarTool {
+    static class AppointmentTool {
         @Autowired
-        private CalendarioService calendarioService;
-        
+        private AppointmentService appointmentService;
+
         @Autowired
-        private SseController sseController;
-        
-        @Tool(description = "Busca os calendários disponíveis para o usuário autenticado. Retorna a lista de calendários do Google associados à conta do usuário que está atualmente conectado via SSE.")
-        public Map<String, Object> BuscarCalendarios() {
+        private TokenService tokenService;
+
+        /**
+         * Método auxiliar para obter o token da requisição atual
+         */
+        private String resolveToken() {
+            // Usa o serviço centralizado de tokens
+            String token = tokenService.extractTokenFromCurrentRequest();
+            
+            if (token != null) {
+                logger.debug("Token obtido com sucesso: {}", token);
+                return token;
+            }
+            
+            logger.warn("Não foi possível obter token por nenhum mecanismo");
+            return null;
+        }
+
+        @Tool(description = "Verifica a disponibilidade para um agendamento em uma data e hora específica.")
+        public Map<String, Object> CheckAvailability(String appointmentDate, String appointmentTime) {
             try {
-                // Uma alternativa é obter o usuário atualmente autenticado diretamente via SseController
-                // Em vez de depender da classe McpServerRequestContext que não está disponível
-                String email = sseController.getCurrentUserEmail();
-                
-                if (email == null || email.isEmpty()) {
-                    return Map.of("success", false, "error", "Não foi possível identificar o usuário. Verifique a autenticação.");
+                String token = resolveToken();
+                if (token == null) {
+                    return Map.of(
+                            "success", false,
+                            "error", "Não foi possível identificar o token. Verifique a autenticação."
+                    );
                 }
-                
-                List<String> calendarios = calendarioService.getCalendariosByUserEmail(email);
+
+                // Converte as strings de data e horário para LocalDate e LocalTime
+                DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+                LocalDate parsedDate = LocalDate.parse(appointmentDate, dateFormatter);
+                LocalTime parsedTime = LocalTime.parse(appointmentTime, timeFormatter);
+
+                // Cria o LocalDateTime combinando data e horário
+                LocalDateTime combinedDateTime = LocalDateTime.of(parsedDate, parsedTime);
+
+                // Cria o objeto de requisição utilizando os campos separados
+                AvailabilityRequest request = AvailabilityRequest.builder()
+                        .appointmentDate(parsedDate)
+                        .appointmentTime(parsedTime)
+                        .durationMinutes(60) // Duração padrão de 60 minutos
+                        .build();
+
+                // Chama o serviço para verificar disponibilidade
+                AvailabilityResponse response = appointmentService.checkAvailability(token, request);
+
                 return Map.of(
-                    "success", true, 
-                    "email", email,
-                    "calendarios", calendarios
+                        "success", true,
+                        "appointmentDate", appointmentDate,
+                        "appointmentTime", appointmentTime,
+                        "available", response.isAvailable(),
+                        "message", response.getMessage() != null ? response.getMessage()
+                                : (response.isAvailable() ? "Horário disponível" : "Horário indisponível")
                 );
-            } catch (UsuarioNaoEncontradoException e) {
-                return Map.of("success", false, "error", "Usuário não encontrado: " + e.getMessage());
-            } catch (TokenInvalidoException e) {
-                return Map.of("success", false, "error", "Token inválido ou expirado: " + e.getMessage());
+
             } catch (Exception e) {
-                return Map.of("success", false, "error", "Erro ao buscar calendários: " + e.getMessage());
+                logger.error("Erro ao verificar disponibilidade: {}", e.getMessage());
+                return Map.of(
+                        "success", false,
+                        "error", "Erro ao verificar disponibilidade: " + e.getMessage()
+                );
+            }
+        }
+
+        @Tool(description = "Cria um novo agendamento com data, horário, nome e resumo.")
+        public Map<String, Object> CreateAppointment(String appointmentDate, String appointmentTime, String name, String summary) {
+            try {
+                String token = resolveToken();
+                if (token == null) {
+                    return Map.of(
+                            "success", false,
+                            "error", "Não foi possível identificar o token. Verifique a autenticação."
+                    );
+                }
+
+                // Converte a string de data e a string de horário para LocalDate e LocalTime
+                DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                LocalDate parsedDate = LocalDate.parse(appointmentDate, dateFormatter);
+
+                DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+                LocalTime parsedTime = LocalTime.parse(appointmentTime, timeFormatter);
+
+                // Cria o objeto de requisição com os campos separados
+                AppointmentRequest request = AppointmentRequest.builder()
+                        .appointmentDate(parsedDate)
+                        .appointmentTime(parsedTime)
+                        .name(name)
+                        .summary(summary)
+                        .durationMinutes(60) // Duração padrão de 60 minutos
+                        .build();
+
+                // Chama o serviço para criar o agendamento
+                AppointmentDto appointment = appointmentService.createAppointment(token, request);
+
+                // Monta a resposta com os dados do agendamento criado
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("id", appointment.getId());
+                response.put("appointmentDate", appointment.getAppointmentDate().toString());
+                response.put("name", appointment.getName());
+                response.put("summary", appointment.getSummary());
+                response.put("status", appointment.getStatus());
+
+                return response;
+
+            } catch (Exception e) {
+                logger.error("Erro ao criar agendamento: {}", e.getMessage());
+                return Map.of(
+                        "success", false,
+                        "error", "Erro ao criar agendamento: " + e.getMessage()
+                );
+            }
+        }
+
+        @Tool(description = "Obtém os detalhes de um agendamento específico pelo seu ID.")
+        public Map<String, Object> GetAppointmentDetails(String id) {
+            try {
+                String token = resolveToken();
+                if (token == null) {
+                    return Map.of(
+                            "success", false,
+                            "error", "Não foi possível identificar o token. Verifique a autenticação."
+                    );
+                }
+
+                // Valida o ID do agendamento
+                if (id == null || id.trim().isEmpty()) {
+                    return Map.of(
+                            "success", false,
+                            "error", "O ID do agendamento é obrigatório."
+                    );
+                }
+
+                // Chama o serviço para obter os detalhes do agendamento
+                AppointmentDto appointment = appointmentService.getAppointment(token, id);
+
+                // Define um formatter para formatação consistente de datas e horas
+                DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+
+                // Monta a resposta com os dados do agendamento
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("id", appointment.getId());
+                response.put("appointmentDate", appointment.getAppointmentDate() != null
+                        ? appointment.getAppointmentDate().format(formatter)
+                        : null);
+                response.put("endDate", appointment.getEndDate() != null
+                        ? appointment.getEndDate().format(formatter)
+                        : null);
+                response.put("durationMinutes", 60);
+                response.put("name", appointment.getName());
+                response.put("summary", appointment.getSummary());
+                response.put("status", appointment.getStatus());
+                response.put("createdAt", appointment.getCreatedAt() != null
+                        ? appointment.getCreatedAt().format(formatter)
+                        : null);
+                response.put("updatedAt", appointment.getUpdatedAt() != null
+                        ? appointment.getUpdatedAt().format(formatter)
+                        : null);
+
+                return response;
+
+            } catch (Exception e) {
+                logger.error("Erro ao obter detalhes do agendamento: {}", e.getMessage());
+                return Map.of(
+                        "success", false,
+                        "error", "Erro ao obter detalhes do agendamento: " + e.getMessage()
+                );
+            }
+        }
+
+        @Tool(description = "Reagenda um agendamento existente com nova data, horário, duração, nome e resumo.")
+        public Map<String, Object> RescheduleAppointment(String id, String appointmentDate, String appointmentTime , String name, String summary) {
+            try {
+                String token = resolveToken();
+                if (token == null) {
+                    return Map.of(
+                            "success", false,
+                            "error", "Não foi possível identificar o token. Verifique a autenticação."
+                    );
+                }
+
+                // Validação do ID
+                if (id == null || id.trim().isEmpty()) {
+                    return Map.of(
+                            "success", false,
+                            "error", "O ID do agendamento é obrigatório."
+                    );
+                }
+
+                // Converte as strings de data e horário para LocalDate e LocalTime
+                DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                LocalDate parsedDate = LocalDate.parse(appointmentDate, dateFormatter);
+
+                DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+                LocalTime parsedTime = LocalTime.parse(appointmentTime, timeFormatter);
+
+                // Cria o objeto de requisição para reagendamento
+                AppointmentRequest request = AppointmentRequest.builder()
+                        .id(id)
+                        .appointmentDate(parsedDate)
+                        .appointmentTime(parsedTime)
+                        .durationMinutes(60)
+                        .name(name)
+                        .summary(summary)
+                        .build();
+
+                // Chama o serviço para reagendar o agendamento
+                AppointmentDto appointment = appointmentService.rescheduleAppointment(token, id, request);
+
+                // Monta a resposta com os dados do agendamento reagendado
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("id", appointment.getId());
+                response.put("appointmentDate", appointment.getAppointmentDate().toString());
+                response.put("endDate", appointment.getEndDate() != null ? appointment.getEndDate().toString() : null);
+                response.put("durationMinutes", 60);
+                response.put("name", appointment.getName());
+                response.put("summary", appointment.getSummary());
+                response.put("status", appointment.getStatus());
+
+                return response;
+            } catch (Exception e) {
+                logger.error("Erro ao reagendar agendamento: {}", e.getMessage());
+                return Map.of(
+                        "success", false,
+                        "error", "Erro ao reagendar agendamento: " + e.getMessage()
+                );
+            }
+        }
+
+
+
+        @Tool(description = "Cancela um agendamento existente pelo seu ID.")
+        public Map<String, Object> CancelAppointment(String id) {
+            try {
+                String token = resolveToken();
+                if (token == null) {
+                    return Map.of(
+                            "success", false,
+                            "error", "Não foi possível identificar o token. Verifique a autenticação."
+                    );
+                }
+
+                // Valida o ID do agendamento
+                if (id == null || id.trim().isEmpty()) {
+                    return Map.of(
+                            "success", false,
+                            "error", "O ID do agendamento é obrigatório."
+                    );
+                }
+
+                // Chama o serviço para cancelar o agendamento
+                boolean cancelled = appointmentService.cancelAppointment(token, id);
+
+                return Map.of(
+                        "success", true,
+                        "id", id,
+                        "cancelled", cancelled,
+                        "message", "Agendamento cancelado com sucesso"
+                );
+
+            } catch (Exception e) {
+                logger.error("Erro ao cancelar agendamento: {}", e.getMessage());
+                return Map.of(
+                        "success", false,
+                        "error", "Erro ao cancelar agendamento: " + e.getMessage()
+                );
             }
         }
     }
