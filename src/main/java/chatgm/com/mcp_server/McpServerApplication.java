@@ -196,7 +196,7 @@ public class McpServerApplication {
         }
 
         @Tool(description = "Cria um novo agendamento com data, horário, nome e resumo.")
-        public Map<String, Object> CreateAppointment(String appointmentDate, String appointmentTime, String name, String summary) {
+        public Map<String, Object> CreateAppointment(String id,String appointmentDate, String appointmentTime, String name, String summary) {
             try {
                 String token = resolveToken();
                 if (token == null) {
@@ -215,6 +215,7 @@ public class McpServerApplication {
 
                 // Cria o objeto de requisição com os campos separados
                 AppointmentRequest request = AppointmentRequest.builder()
+                        .id(id)
                         .appointmentDate(parsedDate)
                         .appointmentTime(parsedTime)
                         .name(name)

@@ -41,17 +41,54 @@ public class AppointmentService {
     public AvailabilityResponse checkAvailability(String token, AvailabilityRequest request) {
         log.info("Verificando disponibilidade para a data: {}", request.getAppointmentDate());
 
+        // Utilize HTTPS para evitar redirecionamento
+        String baseUrl = "https://service.mcpgod.com.br";
+        URI uri = UriComponentsBuilder.fromHttpUrl(baseUrl)
+                .path("/api/appointments/availability")
+                .queryParam("token", token)
+                .build()
+                .toUri();
+        log.info("Request URI: {}", uri.toString());
 
         try {
             return webClient.post()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/appointments/availability")
-                            .queryParam("token", token)
-                            .build())
+                    .uri(uri)
                     .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
                     .bodyValue(request)
-                    .retrieve()
-                    .bodyToMono(AvailabilityResponse.class)
+                    .exchangeToMono(response -> {
+                        log.info("Response Status Code: {}", response.statusCode());
+                        
+                        if (response.statusCode().isError()) {
+                            return response.bodyToMono(String.class)
+                                    .flatMap(body -> {
+                                        log.info("Error Response Body: {}", body);
+                                        AvailabilityResponse errorResponse = new AvailabilityResponse();
+                                        errorResponse.setAvailable(false);
+                                        errorResponse.setMessage("Erro ao verificar disponibilidade: " + body);
+                                        return Mono.just(errorResponse);
+                                    });
+                        }
+                        
+                        return response.bodyToMono(String.class)
+                                .flatMap(body -> {
+                                    log.info("Response Body: {}", body);
+                                    try {
+                                        ObjectMapper mapper = new ObjectMapper();
+                                        mapper.registerModule(new JavaTimeModule());
+                                        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                                        
+                                        AvailabilityResponse availabilityResponse = mapper.readValue(body, AvailabilityResponse.class);
+                                        return Mono.just(availabilityResponse);
+                                    } catch (JsonProcessingException e) {
+                                        log.error("Erro ao processar JSON: {}", e.getMessage());
+                                        AvailabilityResponse errorResponse = new AvailabilityResponse();
+                                        errorResponse.setAvailable(false);
+                                        errorResponse.setMessage("Erro ao processar resposta: " + e.getMessage());
+                                        return Mono.just(errorResponse);
+                                    }
+                                });
+                    })
                     .onErrorResume(WebClientResponseException.class, ex -> {
                         log.error("Erro ao verificar disponibilidade: {} - {}", ex.getStatusCode(), ex.getMessage());
                         AvailabilityResponse errorResponse = new AvailabilityResponse();
@@ -80,16 +117,48 @@ public class AppointmentService {
     public AppointmentDto rescheduleAppointment(String token, String id, AppointmentRequest request) {
         log.info("Reagendando agendamento {} para a nova data: {}", id, request.getAppointmentDate());
 
+        // Utilize HTTPS para evitar redirecionamento
+        String baseUrl = "https://service.mcpgod.com.br";
+        URI uri = UriComponentsBuilder.fromHttpUrl(baseUrl)
+                .path("/api/appointments/{id}")
+                .queryParam("token", token)
+                .buildAndExpand(id)
+                .toUri();
+        log.info("Request URI: {}", uri.toString());
+
         try {
             return webClient.put()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/appointments/{id}")
-                            .queryParam("token", token)
-                            .build(id))
+                    .uri(uri)
                     .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
                     .bodyValue(request)
-                    .retrieve()
-                    .bodyToMono(AppointmentDto.class)
+                    .exchangeToMono(response -> {
+                        log.info("Response Status Code: {}", response.statusCode());
+                        
+                        if (response.statusCode().isError()) {
+                            return response.bodyToMono(String.class)
+                                    .flatMap(body -> {
+                                        log.info("Error Response Body: {}", body);
+                                        return Mono.error(new RuntimeException("Erro ao reagendar agendamento: " + body));
+                                    });
+                        }
+                        
+                        return response.bodyToMono(String.class)
+                                .flatMap(body -> {
+                                    log.info("Response Body: {}", body);
+                                    try {
+                                        ObjectMapper mapper = new ObjectMapper();
+                                        mapper.registerModule(new JavaTimeModule());
+                                        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                                        
+                                        AppointmentDto appointment = mapper.readValue(body, AppointmentDto.class);
+                                        return Mono.just(appointment);
+                                    } catch (JsonProcessingException e) {
+                                        log.error("Erro ao processar JSON: {}", e.getMessage());
+                                        return Mono.error(new RuntimeException("Erro ao processar resposta: " + e.getMessage()));
+                                    }
+                                });
+                    })
                     .onErrorResume(WebClientResponseException.class, ex -> {
                         log.error("Erro ao reagendar agendamento: {} - {}", ex.getStatusCode(), ex.getMessage());
                         throw new RuntimeException("Erro ao reagendar agendamento: " + ex.getMessage());
@@ -110,16 +179,48 @@ public class AppointmentService {
     public AppointmentDto createAppointment(String token, AppointmentRequest request) {
         log.info("Criando agendamento para a data: {}", request.getAppointmentDate());
 
+        // Utilize HTTPS para evitar redirecionamento
+        String baseUrl = "https://service.mcpgod.com.br";
+        URI uri = UriComponentsBuilder.fromHttpUrl(baseUrl)
+                .path("/api/appointments")
+                .queryParam("token", token)
+                .build()
+                .toUri();
+        log.info("Request URI: {}", uri.toString());
+
         try {
             return webClient.post()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/appointments")
-                            .queryParam("token", token)
-                            .build())
+                    .uri(uri)
                     .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
                     .bodyValue(request)
-                    .retrieve()
-                    .bodyToMono(AppointmentDto.class)
+                    .exchangeToMono(response -> {
+                        log.info("Response Status Code: {}", response.statusCode());
+                        
+                        if (response.statusCode().isError()) {
+                            return response.bodyToMono(String.class)
+                                    .flatMap(body -> {
+                                        log.info("Error Response Body: {}", body);
+                                        return Mono.error(new RuntimeException("Erro ao criar agendamento: " + body));
+                                    });
+                        }
+                        
+                        return response.bodyToMono(String.class)
+                                .flatMap(body -> {
+                                    log.info("Response Body: {}", body);
+                                    try {
+                                        ObjectMapper mapper = new ObjectMapper();
+                                        mapper.registerModule(new JavaTimeModule());
+                                        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                                        
+                                        AppointmentDto appointment = mapper.readValue(body, AppointmentDto.class);
+                                        return Mono.just(appointment);
+                                    } catch (JsonProcessingException e) {
+                                        log.error("Erro ao processar JSON: {}", e.getMessage());
+                                        return Mono.error(new RuntimeException("Erro ao processar resposta: " + e.getMessage()));
+                                    }
+                                });
+                    })
                     .onErrorResume(WebClientResponseException.class, ex -> {
                         log.error("Erro ao criar agendamento: {} - {}", ex.getStatusCode(), ex.getMessage());
                         throw new RuntimeException("Erro ao criar agendamento: " + ex.getMessage());
@@ -158,6 +259,16 @@ public class AppointmentService {
                         response.headers().asHttpHeaders().forEach((key, values) ->
                                 values.forEach(value -> log.info("Response Header: {}: {}", key, value))
                         );
+                        
+                        if (response.statusCode().isError()) {
+                            // Se receber código de erro, não tenta converter para AppointmentDto
+                            return response.bodyToMono(String.class)
+                                    .flatMap(body -> {
+                                        log.info("Response Body: {}", body);
+                                        return Mono.error(new RuntimeException("Erro ao buscar agendamento: " + body));
+                                    });
+                        }
+                        
                         return response.bodyToMono(String.class)
                                 .flatMap(body -> {
                                     log.info("Response Body: {}", body);
@@ -171,7 +282,7 @@ public class AppointmentService {
                                         AppointmentDto appointment = mapper.readValue(body, AppointmentDto.class);
                                         return Mono.just(appointment);
                                     } catch (JsonProcessingException e) {
-                                        return Mono.error(e);
+                                        return Mono.error(new RuntimeException("Erro ao processar resposta: " + e.getMessage()));
                                     }
                                 });
                     })
@@ -197,14 +308,39 @@ public class AppointmentService {
     public boolean cancelAppointment(String token, String id) {
         log.info("Cancelando agendamento com ID: {}", id);
 
+        // Utilize HTTPS para evitar redirecionamento
+        String baseUrl = "https://service.mcpgod.com.br";
+        URI uri = UriComponentsBuilder.fromHttpUrl(baseUrl)
+                .path("/api/appointments/{id}")
+                .queryParam("token", token)
+                .buildAndExpand(id)
+                .toUri();
+        log.info("Request URI: {}", uri.toString());
+
         try {
             webClient.delete()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/appointments/{id}")
-                            .queryParam("token", token)
-                            .build(id))
-                    .retrieve()
-                    .bodyToMono(Void.class)
+                    .uri(uri)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .exchangeToMono(response -> {
+                        log.info("Response Status Code: {}", response.statusCode());
+                        
+                        if (response.statusCode().isError()) {
+                            return response.bodyToMono(String.class)
+                                    .flatMap(body -> {
+                                        log.info("Error Response Body: {}", body);
+                                        return Mono.error(new RuntimeException("Erro ao cancelar agendamento: " + body));
+                                    });
+                        }
+                        
+                        // Processa qualquer resposta como String primeiro para lidar com diferentes tipos de conteúdo
+                        return response.bodyToMono(String.class)
+                                .flatMap(body -> {
+                                    if (body != null && !body.isEmpty()) {
+                                        log.info("Response Body: {}", body);
+                                    }
+                                    return Mono.just(true);
+                                });
+                    })
                     .onErrorResume(WebClientResponseException.class, ex -> {
                         log.error("Erro ao cancelar agendamento: {} - {}", ex.getStatusCode(), ex.getMessage());
                         throw new RuntimeException("Erro ao cancelar agendamento: " + ex.getMessage());

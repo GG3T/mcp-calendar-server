@@ -28,6 +28,7 @@ public class AppointmentRequest {
     @JsonFormat(pattern = "HH:mm")
     private LocalTime appointmentTime;  // Exemplo: "14:30"
 
+    @Builder.Default
     private Integer durationMinutes = 60; // Padrão: 60 minutos
 
     private String name;
