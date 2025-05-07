@@ -1,9 +1,7 @@
 package chatgm.com.mcp_server;
 
-import chatgm.com.mcp_server.dto.AppointmentDto;
-import chatgm.com.mcp_server.dto.AppointmentRequest;
-import chatgm.com.mcp_server.dto.AvailabilityRequest;
-import chatgm.com.mcp_server.dto.AvailabilityResponse;
+import chatgm.com.mcp_server.dto.*;
+import chatgm.com.mcp_server.dto.AvailabilityRangeResponseDto.TimeSlot;
 import chatgm.com.mcp_server.service.AppointmentService;
 import chatgm.com.mcp_server.service.TokenService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,7 +23,9 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,6 +68,7 @@ public class McpServerApplication {
             // Ferramentas disponíveis
             logger.info("Ferramentas disponíveis:");
             logger.info("  - check_availability: Verifica disponibilidade para agendamento");
+            logger.info("  - check_availability_range: Verifica disponibilidade por faixa de horário");
             logger.info("  - create_appointment: Cria um novo agendamento");
             logger.info("  - get_appointment_details: Obtém detalhes de um agendamento");
             logger.info("  - cancel_appointment: Cancela um agendamento existente");
@@ -158,9 +159,12 @@ public class McpServerApplication {
                     );
                 }
 
-                // Converte as strings de data e horário para LocalDate e LocalTime
+                // Converte as strings de data e horário para LocalDate e LocalTime no fuso horário de São Paulo (Brazil)
                 DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
                 DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+                
+                // Usa ZoneId.of("America/Sao_Paulo") para garantir que estamos usando o horário de São Paulo
+                ZoneId brazilZone = ZoneId.of("America/Sao_Paulo");
                 LocalDate parsedDate = LocalDate.parse(appointmentDate, dateFormatter);
                 LocalTime parsedTime = LocalTime.parse(appointmentTime, timeFormatter);
 
@@ -206,11 +210,13 @@ public class McpServerApplication {
                     );
                 }
 
-                // Converte a string de data e a string de horário para LocalDate e LocalTime
+                // Converte a string de data e a string de horário para LocalDate e LocalTime no fuso horário de São Paulo (Brazil)
                 DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-                LocalDate parsedDate = LocalDate.parse(appointmentDate, dateFormatter);
-
                 DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+                
+                // Usa ZoneId.of("America/Sao_Paulo") para garantir que estamos usando o horário de São Paulo
+                ZoneId brazilZone = ZoneId.of("America/Sao_Paulo");
+                LocalDate parsedDate = LocalDate.parse(appointmentDate, dateFormatter);
                 LocalTime parsedTime = LocalTime.parse(appointmentTime, timeFormatter);
 
                 // Cria o objeto de requisição com os campos separados
@@ -268,8 +274,9 @@ public class McpServerApplication {
                 // Chama o serviço para obter os detalhes do agendamento
                 AppointmentDto appointment = appointmentService.getAppointment(token, id);
 
-                // Define um formatter para formatação consistente de datas e horas
-                DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+                // Define um formatter para formatação consistente de datas e horas no fuso horário de São Paulo (Brazil)
+                ZoneId brazilZone = ZoneId.of("America/Sao_Paulo");
+                DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(brazilZone);
 
                 // Monta a resposta com os dados do agendamento
                 Map<String, Object> response = new HashMap<>();
@@ -322,11 +329,13 @@ public class McpServerApplication {
                     );
                 }
 
-                // Converte as strings de data e horário para LocalDate e LocalTime
+                // Converte as strings de data e horário para LocalDate e LocalTime no fuso horário de São Paulo (Brazil)
                 DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-                LocalDate parsedDate = LocalDate.parse(appointmentDate, dateFormatter);
-
                 DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+                
+                // Usa ZoneId.of("America/Sao_Paulo") para garantir que estamos usando o horário de São Paulo
+                ZoneId brazilZone = ZoneId.of("America/Sao_Paulo");
+                LocalDate parsedDate = LocalDate.parse(appointmentDate, dateFormatter);
                 LocalTime parsedTime = LocalTime.parse(appointmentTime, timeFormatter);
 
                 // Cria o objeto de requisição para reagendamento
@@ -364,6 +373,72 @@ public class McpServerApplication {
         }
 
 
+
+        @Tool(description = "Verifica a disponibilidade para agendamentos em uma faixa de horário específica.")
+        public Map<String, Object> CheckAvailabilityRange(String appointmentDate, String startTime, String endTime) {
+            try {
+                String token = resolveToken();
+                if (token == null) {
+                    return Map.of(
+                            "success", false,
+                            "error", "Não foi possível identificar o token. Verifique a autenticação."
+                    );
+                }
+
+                // Converte as strings de data e horários para LocalDate e LocalTime no fuso horário de São Paulo (Brazil)
+                DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+                
+                // Usa ZoneId.of("America/Sao_Paulo") para garantir que estamos usando o horário de São Paulo
+                ZoneId brazilZone = ZoneId.of("America/Sao_Paulo");
+                LocalDate parsedDate = LocalDate.parse(appointmentDate, dateFormatter);
+                LocalTime parsedStartTime = LocalTime.parse(startTime, timeFormatter);
+                LocalTime parsedEndTime = LocalTime.parse(endTime, timeFormatter);
+
+                // Cria o objeto de requisição de range
+                AvailabilityRangeRequestDto request = AvailabilityRangeRequestDto.builder()
+                        .appointmentDate(parsedDate)
+                        .startTime(parsedStartTime)
+                        .endTime(parsedEndTime)
+                        .durationMinutes(60) // Duração fixa de 60 minutos
+                        .intervalMinutes(60) // Intervalo fixo de 60 minutos
+                        .build();
+
+                // Chama o serviço para verificar disponibilidade por range
+                AvailabilityRangeResponseDto response = appointmentService.checkAvailabilityRange(token, request);
+
+                // Cria um mapa para a resposta
+                Map<String, Object> result = new HashMap<>();
+                result.put("success", true);
+                result.put("appointmentDate", appointmentDate);
+                result.put("startTime", startTime);
+                result.put("endTime", endTime);
+                
+                // Formata os slots disponíveis para o formato esperado
+                List<Map<String, String>> formattedSlots = new ArrayList<>();
+                if (response.getAvailableSlots() != null) {
+                    for (TimeSlot slot : response.getAvailableSlots()) {
+                        Map<String, String> formattedSlot = new HashMap<>();
+                        formattedSlot.put("startTime", slot.getStartTime().toString());
+                        formattedSlot.put("endTime", slot.getEndTime().toString());
+                        formattedSlots.add(formattedSlot);
+                    }
+                }
+                
+                result.put("availableSlots", formattedSlots);
+                result.put("message", response.getMessage() != null ? response.getMessage() : 
+                        String.format("Encontrados %d horários disponíveis", formattedSlots.size()));
+
+                return result;
+
+            } catch (Exception e) {
+                logger.error("Erro ao verificar disponibilidade por range: {}", e.getMessage());
+                return Map.of(
+                        "success", false,
+                        "error", "Erro ao verificar disponibilidade por range: " + e.getMessage()
+                );
+            }
+        }
 
         @Tool(description = "Cancela um agendamento existente pelo seu ID.")
         public Map<String, Object> CancelAppointment(String id) {

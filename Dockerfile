@@ -22,7 +22,7 @@ RUN mkdir -p /app/logs && \
     chown -R mcp:mcp /logs
 
 # Copiar o JAR do aplicativo
-COPY target/mcp-server-0.28.0.jar app.jar
+COPY target/mcp-server-0.29.0.jar app.jar
 
 # Mudar propriedade para o usuário não-root
 RUN chown -R mcp:mcp /app

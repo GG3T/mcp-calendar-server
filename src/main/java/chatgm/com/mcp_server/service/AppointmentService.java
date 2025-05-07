@@ -1,9 +1,6 @@
 package chatgm.com.mcp_server.service;
 
-import chatgm.com.mcp_server.dto.AppointmentDto;
-import chatgm.com.mcp_server.dto.AppointmentRequest;
-import chatgm.com.mcp_server.dto.AvailabilityRequest;
-import chatgm.com.mcp_server.dto.AvailabilityResponse;
+import chatgm.com.mcp_server.dto.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -21,6 +18,7 @@ import reactor.core.publisher.Mono;
 
 
 import java.net.URI;
+import java.time.ZoneId;
 
 @Service
 @RequiredArgsConstructor
@@ -39,7 +37,11 @@ public class AppointmentService {
      * @return Resposta indicando se o horário está disponível
      */
     public AvailabilityResponse checkAvailability(String token, AvailabilityRequest request) {
-        log.info("Verificando disponibilidade para a data: {}", request.getAppointmentDate());
+        log.info("Verificando disponibilidade para a data: {} (Horário de São Paulo/Brazil)", request.getAppointmentDate());
+        
+        // Ajuste para utilizar o fuso horário de São Paulo/Brazil
+        ZoneId brazilZone = ZoneId.of("America/Sao_Paulo");
+        log.info("Utilizando fuso horário: {}", brazilZone);
 
         // Utilize HTTPS para evitar redirecionamento
         String baseUrl = "https://service.mcpgod.com.br";
@@ -115,7 +117,11 @@ public class AppointmentService {
      */
 
     public AppointmentDto rescheduleAppointment(String token, String id, AppointmentRequest request) {
-        log.info("Reagendando agendamento {} para a nova data: {}", id, request.getAppointmentDate());
+        log.info("Reagendando agendamento {} para a nova data: {} (Horário de São Paulo/Brazil)", id, request.getAppointmentDate());
+        
+        // Ajuste para utilizar o fuso horário de São Paulo/Brazil
+        ZoneId brazilZone = ZoneId.of("America/Sao_Paulo");
+        log.info("Utilizando fuso horário: {}", brazilZone);
 
         // Utilize HTTPS para evitar redirecionamento
         String baseUrl = "https://service.mcpgod.com.br";
@@ -177,7 +183,11 @@ public class AppointmentService {
      * @return Objeto do agendamento criado
      */
     public AppointmentDto createAppointment(String token, AppointmentRequest request) {
-        log.info("Criando agendamento para a data: {}", request.getAppointmentDate());
+        log.info("Criando agendamento para a data: {} (Horário de São Paulo/Brazil)", request.getAppointmentDate());
+        
+        // Ajuste para utilizar o fuso horário de São Paulo/Brazil
+        ZoneId brazilZone = ZoneId.of("America/Sao_Paulo");
+        log.info("Utilizando fuso horário: {}", brazilZone);
 
         // Utilize HTTPS para evitar redirecionamento
         String baseUrl = "https://service.mcpgod.com.br";
@@ -239,8 +249,12 @@ public class AppointmentService {
      * @return Objeto com detalhes do agendamento
      */
     public AppointmentDto getAppointment(String token, String id) {
-        log.info("Buscando agendamento com ID: {}", id);
+        log.info("Buscando agendamento com ID: {} (Horário de São Paulo/Brazil)", id);
         log.info("Token de autenticação: {}", token);
+        
+        // Ajuste para utilizar o fuso horário de São Paulo/Brazil
+        ZoneId brazilZone = ZoneId.of("America/Sao_Paulo");
+        log.info("Utilizando fuso horário: {}", brazilZone);
 
         // Utilize HTTPS para evitar redirecionamento
         String baseUrl = "https://service.mcpgod.com.br";
@@ -300,13 +314,94 @@ public class AppointmentService {
 
 
     /**
+     * Verifica disponibilidade por faixa de horário
+     * @param token Token de autenticação
+     * @param request Dados da requisição contendo a data, hora de início, hora de fim, duração e intervalo
+     * @return Resposta contendo os slots de tempo disponíveis
+     */
+    public AvailabilityRangeResponseDto checkAvailabilityRange(String token, AvailabilityRangeRequestDto request) {
+        log.info("Verificando disponibilidade por range para a data: {}, hora início: {}, hora fim: {} (Horário de São Paulo/Brazil)", 
+                request.getAppointmentDate(), request.getStartTime(), request.getEndTime());
+                
+        // Ajuste para utilizar o fuso horário de São Paulo/Brazil
+        ZoneId brazilZone = ZoneId.of("America/Sao_Paulo");
+        
+        // Log para registrar que estamos usando o fuso horário de São Paulo
+        log.info("Utilizando fuso horário: {}", brazilZone);
+
+        // Utilize HTTPS para evitar redirecionamento
+        String baseUrl = "https://service.mcpgod.com.br";
+        URI uri = UriComponentsBuilder.fromHttpUrl(baseUrl)
+                .path("/api/appointments/availability/range")
+                .queryParam("token", token)
+                .build()
+                .toUri();
+        log.info("Request URI: {}", uri.toString());
+
+        try {
+            return webClient.post()
+                    .uri(uri)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .bodyValue(request)
+                    .exchangeToMono(response -> {
+                        log.info("Response Status Code: {}", response.statusCode());
+                        
+                        if (response.statusCode().isError()) {
+                            return response.bodyToMono(String.class)
+                                    .flatMap(body -> {
+                                        log.info("Error Response Body: {}", body);
+                                        AvailabilityRangeResponseDto errorResponse = new AvailabilityRangeResponseDto();
+                                        errorResponse.setMessage("Erro ao verificar disponibilidade por range: " + body);
+                                        return Mono.just(errorResponse);
+                                    });
+                        }
+                        
+                        return response.bodyToMono(String.class)
+                                .flatMap(body -> {
+                                    log.info("Response Body: {}", body);
+                                    try {
+                                        ObjectMapper mapper = new ObjectMapper();
+                                        mapper.registerModule(new JavaTimeModule());
+                                        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                                        
+                                        AvailabilityRangeResponseDto availabilityResponse = mapper.readValue(body, AvailabilityRangeResponseDto.class);
+                                        return Mono.just(availabilityResponse);
+                                    } catch (JsonProcessingException e) {
+                                        log.error("Erro ao processar JSON: {}", e.getMessage());
+                                        AvailabilityRangeResponseDto errorResponse = new AvailabilityRangeResponseDto();
+                                        errorResponse.setMessage("Erro ao processar resposta: " + e.getMessage());
+                                        return Mono.just(errorResponse);
+                                    }
+                                });
+                    })
+                    .onErrorResume(WebClientResponseException.class, ex -> {
+                        log.error("Erro ao verificar disponibilidade por range: {} - {}", ex.getStatusCode(), ex.getMessage());
+                        AvailabilityRangeResponseDto errorResponse = new AvailabilityRangeResponseDto();
+                        errorResponse.setMessage("Erro ao verificar disponibilidade por range: " + ex.getMessage());
+                        return Mono.just(errorResponse);
+                    })
+                    .block();
+        } catch (Exception e) {
+            log.error("Erro ao verificar disponibilidade por range: {}", e.getMessage());
+            AvailabilityRangeResponseDto errorResponse = new AvailabilityRangeResponseDto();
+            errorResponse.setMessage("Erro ao verificar disponibilidade por range: " + e.getMessage());
+            return errorResponse;
+        }
+    }
+
+    /**
      * Cancela um agendamento existente
      * @param token Token de autenticação
      * @param id Identificador do agendamento
      * @return true se o agendamento foi cancelado com sucesso
      */
     public boolean cancelAppointment(String token, String id) {
-        log.info("Cancelando agendamento com ID: {}", id);
+        log.info("Cancelando agendamento com ID: {} (Horário de São Paulo/Brazil)", id);
+        
+        // Ajuste para utilizar o fuso horário de São Paulo/Brazil
+        ZoneId brazilZone = ZoneId.of("America/Sao_Paulo");
+        log.info("Utilizando fuso horário: {}", brazilZone);
 
         // Utilize HTTPS para evitar redirecionamento
         String baseUrl = "https://service.mcpgod.com.br";
